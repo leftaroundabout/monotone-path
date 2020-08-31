@@ -14,9 +14,15 @@ import Test.Tasty.QuickCheck
 import qualified Test.QuickCheck as QC
 import Data.Path.Monotone
 
+import qualified Data.Vector.Unboxed as V
+
+
+
+ 
 main :: IO ()
 main = do
   defaultMain $ testGroup "Tests"
-   []
+   [ testProperty "No decreasing interval in monotone path"
+       $ \(MonotonePath pth) -> decreasingIntervals pth === [] ]
 
 
