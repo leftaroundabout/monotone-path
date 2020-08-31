@@ -12,7 +12,12 @@
 module Data.Path.Monotone where
 
 import qualified Data.Vector.Unboxed as V
+import qualified Data.Vector.Unboxed.Mutable as VM
 import qualified Test.QuickCheck as QC
+
+import Control.Monad (forM_)
+import Control.Arrow ((&&&))
+
 
 type Path a = V.Vector a
 
@@ -92,6 +97,37 @@ growDecreasingIntv pth (IntervalWRange il ir ymin ymax)
        ym = (pth V.! il + pth V.! ir) / 2
        len = V.length pth
 
--- projectMonotone_l¹min :: Path Double -> Path Double
--- projectMonotone_l¹min arr = quenchDecreasing (decreasingInterv arr)
+mergeOverlappingIntvs :: [(IntervalWRange Int Double, a)]
+                      -> [(IntervalWRange Int Double, [a])]
+mergeOverlappingIntvs [] = []
+mergeOverlappingIntvs ((IntervalWRange xl₀ xr₀ yb₀ yt₀, a) : ivs)
+                  = case break ((>xr₀).xMin.fst) $ mergeOverlappingIntvs ivs of
+       (overlapping, rest)
+           -> let yb = minimum $ yb₀ : (yMin.fst<$>overlapping)
+                  yt = maximum $ yt₀ : (yMax.fst<$>overlapping)
+                  xr = maximum $ xr₀ : (xMax.fst<$>overlapping)
+              in (IntervalWRange xl₀ xr yb yt, a : (snd=<<overlapping)) : rest
+
+projectMonotone_l¹min :: Path Double -> MonotonePath Double
+projectMonotone_l¹min pth = MonotonePath
+    $ V.create (do
+        pthSt <- V.thaw pth
+        forM_ (growAndMerge $ decreasingIntervals pth)
+           $ \(IntervalWRange xl xr yb yt) -> do
+          let ym = (yb+yt)/2
+          forM_ [xl..xr] $ \x -> VM.write pthSt x ym
+        return pthSt
+       )
+ where growAndMerge ivs
+         | all (null . tail . snd) merged
+             = fst <$> merged
+         | otherwise
+             = growAndMerge [ IntervalWRange xl xr yb yt
+                            | (_, subIvs) <- merged
+                            , let yb = minimum $ yMin<$>subIvs
+                                  yt = maximum $ yMax<$>subIvs
+                                  xl = minimum $ xMin<$>subIvs
+                                  xr = maximum $ xMax<$>subIvs ]
+        where grown = (growDecreasingIntv pth &&& id)<$>ivs
+              merged = mergeOverlappingIntvs grown
 
