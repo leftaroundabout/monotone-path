@@ -33,6 +33,11 @@ main = do
                   testPath = asc <> V.tail desc <> V.tail reAsc
               in ((xMin&&&xMax) <$> decreasingIntervals testPath)
                      === [(V.length asc - 1, V.length asc + V.length desc - 2)]
+   , testProperty "Monotone path already monotone"
+       $ \pth -> projectMonotone_l¹min (getMonotonePath pth) === pth
+   , testProperty "Monotonicisation is projection"
+       $ \pth -> let monotn = projectMonotone_l¹min (V.fromList pth)
+                 in projectMonotone_l¹min (getMonotonePath monotn) === monotn
    ]
 
 
