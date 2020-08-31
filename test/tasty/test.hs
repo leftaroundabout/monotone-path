@@ -15,6 +15,8 @@ import qualified Test.QuickCheck as QC
 import Data.Path.Monotone
 
 import qualified Data.Vector.Unboxed as V
+import Data.Semigroup
+import Control.Arrow ((&&&))
 
 
 
@@ -23,6 +25,14 @@ main :: IO ()
 main = do
   defaultMain $ testGroup "Tests"
    [ testProperty "No decreasing interval in monotone path"
-       $ \(MonotonePath pth) -> decreasingIntervals pth === [] ]
+       $ \(MonotonePath pth) -> decreasingIntervals pth === []
+   , testProperty "Localise single decreasing interval"
+       $ \(MonotonePath asc) (PositivePath descδs) (NonNegativePath reAscδs)
+           -> let desc = V.scanl (-) (V.last asc) descδs
+                  reAsc = V.scanl (+) (V.last desc) reAscδs
+                  testPath = asc <> V.tail desc <> V.tail reAsc
+              in ((xMin&&&xMax) <$> decreasingIntervals testPath)
+                     === [(V.length asc - 1, V.length asc + V.length desc - 2)]
+   ]
 
 
