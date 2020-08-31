@@ -65,7 +65,7 @@ data IntervalWRange x y = IntervalWRange
        , yMin, yMax :: y }
   deriving (Eq, Show)
 
--- | Obtain all the disjoint ranges @(𝑖₀,𝑖₁)@ such that @pth ! i₀ > pth ! i₁@.
+-- | Obtain all the disjoint ranges \((i_0,i_1)\) such that \(p_{i_0} > p_{i_1}\).
 decreasingIntervals :: Path Double -> [IntervalWRange Int Double]
 decreasingIntervals pth = go 0
  where go i
@@ -73,16 +73,20 @@ decreasingIntervals pth = go 0
          | pth V.! i > pth V.! (i+1)
          , i' <- decrEnd (i+1)
                        =  IntervalWRange i i' (pth V.! i) (pth V.! i') : go i'
-         | otherwise   = go (i+1) 
+         | otherwise   = go (i+1)
        decrEnd i
          | i >= l-1                   = i
          | pth V.! i > pth V.! (i+1)  = decrEnd (i+1)
          | otherwise                  = i
-       
+
        l = V.length pth
-         
 
 
+-- | Given an interval in which the path passes from a local maximum \(y_\text{max}\)
+--   to a local minimum \(y_\text{min}\), extend it on both sides up to the points
+--   where the non-monotonicity can be “ironed out” by replacing it (continuously)
+--   with a constant segment, valued at the (\(\ell^\infty\)) mean between \(y_\text{min}\)
+--   and \(y_\text{max}\).
 growDecreasingIntv :: Path Double -> IntervalWRange Int Double -> IntervalWRange Int Double
 growDecreasingIntv pth (IntervalWRange il ir ymin ymax)
                    = IntervalWRange (goL il) (goR ir) ymin ymax
@@ -108,8 +112,11 @@ mergeOverlappingIntvs ((IntervalWRange xl₀ xr₀ yb₀ yt₀, a) : ivs)
                   xr = maximum $ xr₀ : (xMax.fst<$>overlapping)
               in (IntervalWRange xl₀ xr yb yt, a : (snd=<<overlapping)) : rest
 
-projectMonotone_l¹min :: Path Double -> MonotonePath Double
-projectMonotone_l¹min pth = MonotonePath
+-- | Given a path \(p\), find a monotone path \(q\) such that \(\max_{x\in I} |p_x-q_x|\) is
+--   minimal (i.e., this is a projection using the \(\ell^\infty\)-distance). Note
+--   that this minimum is in general not unique.
+projectMonotone_lInftymin :: Path Double -> MonotonePath Double
+projectMonotone_lInftymin pth = MonotonePath
     $ V.create (do
         pthSt <- V.thaw pth
         forM_ (growAndMerge $ decreasingIntervals pth)
