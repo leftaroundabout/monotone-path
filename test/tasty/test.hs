@@ -38,6 +38,11 @@ main = do
    , testProperty "Monotonicisation is projection"
        $ \pth -> let monotn = projectMonotone_lInftymin (V.fromList pth)
                  in projectMonotone_lInftymin (getMonotonePath monotn) === monotn
+   , testProperty "After monotonicisation really monotone"
+       $ \pth -> let MonotonePath monotn = projectMonotone_lInftymin (V.fromList pth)
+                 in QC.counterexample ("Result: "++show monotn)
+                     $ V.length monotn > 0
+                      ==> (V.and $ V.zipWith (<=) monotn (V.tail monotn))
    ]
 
 
