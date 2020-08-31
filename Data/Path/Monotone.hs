@@ -89,11 +89,11 @@ growDecreasingIntv pth (IntervalWRange il ir ymin ymax)
  where goL 0 = 0
        goL i
         | pth V.! (i-1) > ym  = goL $ i-1
-        | otherwise           = i
+        | otherwise           = i-1
        goR i
         | i >= len-1          = i
         | pth V.! (i+1) < ym  = goR $ i+1
-        | otherwise           = i
+        | otherwise           = i+1
        ym = (pth V.! il + pth V.! ir) / 2
        len = V.length pth
 
@@ -101,7 +101,7 @@ mergeOverlappingIntvs :: [(IntervalWRange Int Double, a)]
                       -> [(IntervalWRange Int Double, [a])]
 mergeOverlappingIntvs [] = []
 mergeOverlappingIntvs ((IntervalWRange xl₀ xr₀ yb₀ yt₀, a) : ivs)
-                  = case break ((>xr₀).xMin.fst) $ mergeOverlappingIntvs ivs of
+                  = case break ((>xr₀+1).xMin.fst) $ mergeOverlappingIntvs ivs of
        (overlapping, rest)
            -> let yb = minimum $ yb₀ : (yMin.fst<$>overlapping)
                   yt = maximum $ yt₀ : (yMax.fst<$>overlapping)
