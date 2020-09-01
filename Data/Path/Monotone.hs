@@ -14,6 +14,8 @@ module Data.Path.Monotone where
 import qualified Data.Vector.Unboxed as V
 import qualified Data.Vector.Unboxed.Mutable as VM
 import qualified Test.QuickCheck as QC
+import Data.List (sortBy)
+import Data.Ord (comparing)
 
 import Control.Monad (forM_)
 import Control.Arrow ((&&&))
@@ -103,10 +105,14 @@ growDecreasingIntv pth (IntervalWRange il ir ymin ymax)
 
 mergeOverlappingIntvs :: [(IntervalWRange Int Double, a)]
                       -> [(IntervalWRange Int Double, [a])]
-mergeOverlappingIntvs [] = []
-mergeOverlappingIntvs ((IntervalWRange xl₀ xr₀ yb₀ yt₀, a) : ivs)
-                  = case break ((>xr₀+1).xMin.fst) $ mergeOverlappingIntvs ivs of
-       (overlapping, rest)
+mergeOverlappingIntvs = go . sortBy (comparing $ xMin.fst)
+                 -- Is it necessary to pre-sort the list? Testing suggest it isn't,
+                 -- but in contrived examples (third interval much larger than second)
+                 -- it certainly might be needed.
+ where go [] = []
+       go ((IntervalWRange xl₀ xr₀ yb₀ yt₀, a) : ivs)
+                  = case break ((>xr₀+1).xMin.fst) $ go ivs of
+        (overlapping, rest)
            -> let yb = minimum $ yb₀ : (yMin.fst<$>overlapping)
                   yt = maximum $ yt₀ : (yMax.fst<$>overlapping)
                   xr = maximum $ xr₀ : (xMax.fst<$>overlapping)
