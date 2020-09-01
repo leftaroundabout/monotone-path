@@ -74,7 +74,7 @@ decreasingIntervals pth = go 0
          | i >= l-1    = []
          | pth V.! i > pth V.! (i+1)
          , i' <- decrEnd (i+1)
-                       =  IntervalWRange i i' (pth V.! i) (pth V.! i') : go i'
+                       =  IntervalWRange i i' (pth V.! i') (pth V.! i) : go i'
          | otherwise   = go (i+1)
        decrEnd i
          | i >= l-1                   = i
