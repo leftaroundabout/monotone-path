@@ -89,17 +89,18 @@ decreasingIntervals pth = go 0
 --   where the non-monotonicity can be “ironed out” by replacing it (continuously)
 --   with a constant segment, valued at the (\(\ell^\infty\)) mean between \(y_\text{min}\)
 --   and \(y_\text{max}\).
-growDecreasingIntv :: Path Double -> IntervalWRange Int Double -> IntervalWRange Int Double
-growDecreasingIntv pth (IntervalWRange il ir ymin ymax)
+growDecreasingIntv :: Path Double -> (Int,Int)
+                    -> IntervalWRange Int Double -> IntervalWRange Int Double
+growDecreasingIntv pth (illim,irlim) (IntervalWRange il ir ymin ymax)
                    = IntervalWRange (goL il) (goR ir) ymin ymax
- where goL 0 = 0
-       goL i
+ where goL i
+        | i <= illim          = i
         | pth V.! (i-1) > ym  = goL $ i-1
-        | otherwise           = i-1
+        | otherwise           = i
        goR i
-        | i >= len-1          = i
+        | i >= irlim          = i
         | pth V.! (i+1) < ym  = goR $ i+1
-        | otherwise           = i+1
+        | otherwise           = i
        ym = (ymin+ymax) / 2
        len = V.length pth
 
@@ -111,7 +112,8 @@ mergeOverlappingIntvs = go . sortBy (comparing $ xMin.fst)
                  -- it certainly might be needed.
  where go [] = []
        go ((IntervalWRange xl₀ xr₀ yb₀ yt₀, a) : ivs)
-                  = case break ((>xr₀+1).xMin.fst) $ go ivs of
+                  = case break (\(irw',_) -> xMin irw' > xr₀+1
+                                   || yMin irw'+yMax irw' > yb₀ + yt₀) $ go ivs of
         (overlapping, rest)
            -> let yb = minimum $ yb₀ : (yMin.fst<$>overlapping)
                   yt = maximum $ yt₀ : (yMax.fst<$>overlapping)
@@ -141,7 +143,10 @@ projectMonotone_lInftymin pth = MonotonePath
                                   yt = maximum $ yMax<$>subIvs
                                   xl = minimum $ xMin<$>subIvs
                                   xr = maximum $ xMax<$>subIvs ]
-        where grown = (growDecreasingIntv pth &&& id)<$>ivs
+        where grown = zipWith3 (\lb m rb -> (growDecreasingIntv pth (lb,rb) m, m))
+                               (0 : (xMax<$>init ivs))
+                               ivs
+                               ((xMin<$>tail ivs) ++ [V.length pth-1])
               merged = mergeOverlappingIntvs grown
 
 
