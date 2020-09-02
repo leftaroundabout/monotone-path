@@ -49,16 +49,29 @@ main = do
     ]
    , testGroup "After monotonicisation really monotone"
     [ testProperty "derivative-clipping"
-       $ \pth -> let MonotonePath monotn
+       $ \(QC.NonEmpty pth)
+              -> let MonotonePath monotn
                         = projectMonotone_derivativeClipping (V.fromList pth)
                  in QC.counterexample ("Result: "++show monotn)
-                     $ V.length monotn > 0
-                      ==> (V.and $ V.zipWith (<=) monotn (V.tail monotn))
+                     . V.and $ V.zipWith (<=) monotn (V.tail monotn)
     , testProperty "interval-growing"
-       $ \pth -> let MonotonePath monotn = projectMonotone_lInftymin (V.fromList pth)
+       $ \(QC.NonEmpty pth)
+              -> let MonotonePath monotn = projectMonotone_lInftymin (V.fromList pth)
                  in QC.counterexample ("Result: "++show monotn)
-                     $ V.length monotn > 0
-                      ==> (V.and $ V.zipWith (<=) monotn (V.tail monotn))
+                     . V.and $ V.zipWith (<=) monotn (V.tail monotn)
+    ]
+   , testGroup "Interval-growing is better"
+    [ testProperty "l^∞"
+       $ \(QC.NonEmpty pthl)
+               -> let pth = V.fromList pthl
+                      MonotonePath drvClipd = projectMonotone_derivativeClipping pth
+                      MonotonePath iGrown = projectMonotone_lInftymin pth
+                      refDeviation = V.maximum . V.zipWith (\r c -> abs $ c-r) pth
+                  in QC.counterexample ("drvClipd="++show drvClipd
+                                        ++": dev="++show (refDeviation drvClipd)
+                                        ++", iGrown="++show iGrown
+                                        ++": dev="++show (refDeviation iGrown))
+                      $ refDeviation iGrown <= refDeviation drvClipd
     ]
    ]
 
