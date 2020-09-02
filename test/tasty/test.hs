@@ -33,16 +33,39 @@ main = do
                   testPath = asc <> V.tail desc <> V.tail reAsc
               in ((xMin&&&xMax) <$> decreasingIntervals testPath)
                      === [(V.length asc - 1, V.length asc + V.length desc - 2)]
-   , testProperty "Monotone path already monotone"
+   , testGroup "Monotone path already monotone"
+    [ testProperty "derivative-clipping"
+       $ \pth -> projectMonotone_derivativeClipping (getMonotonePath pth) ≈≈≈ pth
+    , testProperty "interval-growing"
        $ \pth -> projectMonotone_lInftymin (getMonotonePath pth) === pth
-   , testProperty "Monotonicisation is projection"
+    ]
+   , testGroup "Monotonicisation is projection"
+    [ testProperty "derivative-clipping"
+       $ \pth -> let monotn = projectMonotone_derivativeClipping (V.fromList pth)
+                 in projectMonotone_lInftymin (getMonotonePath monotn) ≈≈≈ monotn
+    , testProperty "interval-growing"
        $ \pth -> let monotn = projectMonotone_lInftymin (V.fromList pth)
                  in projectMonotone_lInftymin (getMonotonePath monotn) === monotn
-   , testProperty "After monotonicisation really monotone"
+    ]
+   , testGroup "After monotonicisation really monotone"
+    [ testProperty "derivative-clipping"
+       $ \pth -> let MonotonePath monotn
+                        = projectMonotone_derivativeClipping (V.fromList pth)
+                 in QC.counterexample ("Result: "++show monotn)
+                     $ V.length monotn > 0
+                      ==> (V.and $ V.zipWith (<=) monotn (V.tail monotn))
+    , testProperty "interval-growing"
        $ \pth -> let MonotonePath monotn = projectMonotone_lInftymin (V.fromList pth)
                  in QC.counterexample ("Result: "++show monotn)
                      $ V.length monotn > 0
                       ==> (V.and $ V.zipWith (<=) monotn (V.tail monotn))
+    ]
    ]
 
 
+(≈≈≈) :: MonotonePath Double -> MonotonePath Double -> QC.Property
+MonotonePath p ≈≈≈ MonotonePath q
+ | V.and $ V.zipWith (\x y -> abs (x-y) < 1e-9) p q
+     = p===p
+ | otherwise
+     = p===q
