@@ -144,3 +144,14 @@ projectMonotone_lInftymin pth = MonotonePath
         where grown = (growDecreasingIntv pth &&& id)<$>ivs
               merged = mergeOverlappingIntvs grown
 
+
+projectMonotone_derivativeClipping :: Path Double -> MonotonePath Double
+projectMonotone_derivativeClipping pth
+  | V.null pth  = MonotonePath V.empty
+  | y₀ < ye     = MonotonePath $ V.map (\y -> y₀ + (y-y₀)*rescalingFactor) reIntgd
+  | otherwise   = MonotonePath $ V.map (\_ -> (y₀+ye)/2) pth
+ where y₀ = V.head pth
+       ye = V.last pth
+       derivsClipped = V.map (max 0) $ V.zipWith (-) (V.tail pth) pth
+       reIntgd = V.scanl' (+) y₀ derivsClipped
+       rescalingFactor = (ye-y₀) / (V.last reIntgd - V.head reIntgd)
