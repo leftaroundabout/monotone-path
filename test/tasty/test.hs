@@ -62,18 +62,23 @@ main = do
                      . V.and $ V.zipWith (<=) monotn (V.tail monotn)
     ]
    , testGroup "Noise robustness"
-    [ testProperty "interval-growing"
-       $ \(MonotonePath orig) (QC.Positive noiseSmallness)
-             -> QC.forAll (V.map (/(noiseSmallness+1)) . V.fromList
-                           <$> QC.vectorOf (V.length orig) QC.arbitrary)
-        $ \noise -> V.length orig > 1 ==>
-                    let metric = V.sum . V.map (^2)
-                        perturbed = V.zipWith (+) orig noise
-                        MonotonePath reMonotonized
-                             = projectMonotone_lInftymin perturbed
-                    in QC.counterexample ("Result: "++show reMonotonized)
-                        $ metric (V.zipWith (-) orig reMonotonized)
-                             <= metric noise*2
+    [ testProperty "interval-growing, l^1"
+       $ noiseRobust projectMonotone_lInftymin (V.sum . V.map abs)
+    , testProperty "interval-growing, l^2"
+       $ noiseRobust projectMonotone_lInftymin (V.sum . V.map (^2))
+    , testProperty "interval-growing, l^∞"
+       $ noiseRobust projectMonotone_lInftymin (V.maximum . V.map abs)
+     -- The derivative-clipping algorithm is _not_ noise-robust, but note that
+     -- QuickCheck may take ≳100 tests to find a counterexample.
+    , testProperty "derivative-clipping, l^1"
+       $ QC.expectFailure
+          . noiseRobust projectMonotone_derivativeClipping (V.sum . V.map abs)
+    , testProperty "derivative-clipping, l^2"
+       $ QC.expectFailure
+          . noiseRobust projectMonotone_derivativeClipping (V.sum . V.map (^2))
+    , testProperty "derivative-clipping, l^∞"
+       $ QC.expectFailure
+          . noiseRobust projectMonotone_derivativeClipping (V.maximum . V.map abs)
     ]
    , testGroup "Comparison of monotonizers"
      $ let drvClip = ("drvClipd", projectMonotone_derivativeClipping)
@@ -133,6 +138,21 @@ betterThan :: (String, MonotoneProjector Double)
                      ++": dev="++show (metric pth mpth₁) )
              $ metric pth mpth₀ <= metric pth mpth₁
  where [mpth₀, mpth₁] = getMonotonePath . ($pth) <$> [mtc₀, mtc₁]
+
+noiseRobust :: MonotoneProjector Double
+          -> (Path Double -> Double)
+          -> MonotonePath Double
+          -> QC.Property
+noiseRobust projector metric (MonotonePath orig)
+             = QC.forAll (V.fromList
+                           <$> QC.vectorOf (V.length orig) QC.arbitrary)
+        $ \noise -> V.length orig > 1 ==>
+                    let perturbed = V.zipWith (+) orig noise
+                        MonotonePath reMonotonized
+                             = projector perturbed
+                    in QC.counterexample ("Result: "++show reMonotonized)
+                        $ metric (V.zipWith (-) orig reMonotonized)
+                             <= metric noise*1.5
 
 (≈≈≈) :: MonotonePath Double -> MonotonePath Double -> QC.Property
 MonotonePath p ≈≈≈ MonotonePath q
