@@ -61,6 +61,20 @@ main = do
                  in QC.counterexample ("Result: "++show monotn)
                      . V.and $ V.zipWith (<=) monotn (V.tail monotn)
     ]
+   , testGroup "Noise robustness"
+    [ testProperty "interval-growing"
+       $ \(MonotonePath orig) (QC.Positive noiseSmallness)
+             -> QC.forAll (V.map (/(noiseSmallness+1)) . V.fromList
+                           <$> QC.vectorOf (V.length orig) QC.arbitrary)
+        $ \noise -> V.length orig > 1 ==>
+                    let metric = V.sum . V.map (^2)
+                        perturbed = V.zipWith (+) orig noise
+                        MonotonePath reMonotonized
+                             = projectMonotone_lInftymin perturbed
+                    in QC.counterexample ("Result: "++show reMonotonized)
+                        $ metric (V.zipWith (-) orig reMonotonized)
+                             <= metric noise*2
+    ]
    , testGroup "Comparison of monotonizers"
      $ let drvClip = ("drvClipd", projectMonotone_derivativeClipping)
            iGrow   = ("iGrown", projectMonotone_lInftymin)
@@ -74,11 +88,11 @@ main = do
 --     , testProperty "NOT ‖iGrow‖ ≤ ‖drvClip‖  (l^2)  (but usually)"
 --           . QC.expectFailure
 --           . (iGrow`betterThan`drvClip)
---           $ fmap V.sum . V.zipWith (\r c -> (^2) . abs $ c-r)
+--           $ fmap V.sum . V.zipWith (\r c -> (c-r)^2)
        , testProperty "NOT ‖iGrow‖ ≥ ‖drvClip‖  (l^2)"
              . QC.expectFailure
              . (drvClip`betterThan`iGrow)
-             $ fmap V.sum . V.zipWith (\r c -> (^2) . abs $ c-r)
+             $ fmap V.sum . V.zipWith (\r c -> (c-r)^2)
 --     , testProperty "NOT ‖iGrow‖ ≤ ‖drvClip‖  (l^1)"
 --           . QC.expectFailure
 --           . (iGrow`betterThan`drvClip)
