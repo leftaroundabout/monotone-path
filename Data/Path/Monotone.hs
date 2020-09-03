@@ -120,10 +120,12 @@ mergeOverlappingIntvs = go . sortBy (comparing $ xMin.fst)
                   xr = maximum $ xr₀ : (xMax.fst<$>overlapping)
               in (IntervalWRange xl₀ xr yb yt, a : (snd=<<overlapping)) : rest
 
+type MonotoneProjector a = Path a -> MonotonePath a
+
 -- | Given a path \(p\), find a monotone path \(q\) such that \(\max_{x\in I} |p_x-q_x|\) is
 --   minimal (i.e., this is a projection using the \(\ell^\infty\)-distance). Note
 --   that this minimum is in general not unique.
-projectMonotone_lInftymin :: Path Double -> MonotonePath Double
+projectMonotone_lInftymin :: MonotoneProjector Double
 projectMonotone_lInftymin pth = MonotonePath
     $ V.create (do
         pthSt <- V.thaw pth
@@ -150,7 +152,7 @@ projectMonotone_lInftymin pth = MonotonePath
               merged = mergeOverlappingIntvs grown
 
 
-projectMonotone_derivativeClipping :: Path Double -> MonotonePath Double
+projectMonotone_derivativeClipping :: MonotoneProjector Double
 projectMonotone_derivativeClipping pth
   | V.null pth  = MonotonePath V.empty
   | y₀ < ye     = MonotonePath $ V.map (\y -> y₀ + (y-y₀)*rescalingFactor) reIntgd

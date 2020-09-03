@@ -60,21 +60,31 @@ main = do
                  in QC.counterexample ("Result: "++show monotn)
                      . V.and $ V.zipWith (<=) monotn (V.tail monotn)
     ]
-   , testGroup "Interval-growing is better"
-    [ testProperty "l^∞"
-       $ \(QC.NonEmpty pthl)
-               -> let pth = V.fromList pthl
-                      MonotonePath drvClipd = projectMonotone_derivativeClipping pth
-                      MonotonePath iGrown = projectMonotone_lInftymin pth
-                      refDeviation = V.maximum . V.zipWith (\r c -> abs $ c-r) pth
-                  in QC.counterexample ("drvClipd="++show drvClipd
-                                        ++": dev="++show (refDeviation drvClipd)
-                                        ++", iGrown="++show iGrown
-                                        ++": dev="++show (refDeviation iGrown))
-                      $ refDeviation iGrown <= refDeviation drvClipd
-    ]
+   , testGroup "Comparison of monotonizers"
+     $ let drvClip = ("drvClipd", projectMonotone_derivativeClipping)
+           iGrow   = ("iGrown", projectMonotone_lInftymin)
+    in [ testProperty "‖iGrow‖ ≤ ‖drvClip‖  (l^∞)"
+             . (iGrow`betterThan`drvClip)
+             $ fmap V.maximum . V.zipWith (\r c -> abs $ c-r)
+       , testProperty "‖iGrow‖ ≥ ‖drvClip‖  (l^∞)"
+             . QC.expectFailure
+             . (drvClip`betterThan`iGrow)
+             $ fmap V.maximum . V.zipWith (\r c -> abs $ c-r)
+       ]
    ]
 
+betterThan :: (String, MonotoneProjector Double)
+          -> (String, MonotoneProjector Double)
+        -> (Path Double -> Path Double -> Double)
+        -> QC.NonEmptyList Double -> QC.Property
+((mtc₀n, mtc₀)`betterThan`(mtc₁n, mtc₁)) metric (QC.NonEmpty pthl)
+      = QC.counterexample ( mtc₀n++"="++show mpth₀
+                     ++": dev="++show (metric pth mpth₀)
+                     ++", "++mtc₁n++"="++show mpth₁
+                     ++": dev="++show (metric pth mpth₁) )
+             $ metric pth mpth₀ <= metric pth mpth₁
+ where pth = V.fromList pthl
+       [mpth₀, mpth₁] = getMonotonePath . ($pth) <$> [mtc₀, mtc₁]
 
 (≈≈≈) :: MonotonePath Double -> MonotonePath Double -> QC.Property
 MonotonePath p ≈≈≈ MonotonePath q
