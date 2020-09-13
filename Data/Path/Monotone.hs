@@ -106,10 +106,7 @@ growDecreasingIntv pth (illim,irlim) (IntervalWRange il ir ymin ymax)
 
 mergeOverlappingIntvs :: [(IntervalWRange Int Double, a)]
                       -> [(IntervalWRange Int Double, [a])]
-mergeOverlappingIntvs = go . sortBy (comparing $ xMin.fst)
-                 -- Is it necessary to pre-sort the list? Testing suggest it isn't,
-                 -- but in contrived examples (third interval much larger than second)
-                 -- it certainly might be needed.
+mergeOverlappingIntvs = go
  where go [] = []
        go ((IntervalWRange xl₀ xr₀ yb₀ yt₀, a) : ivs)
                   = case break (\(irw',_) -> xMin irw' > xr₀+1
